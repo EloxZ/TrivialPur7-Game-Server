@@ -18,5 +18,8 @@
     "start": "node index.js"
   },
   "author": "Eloy Barrionuevo Jimenez",
-  "license": "cc"
+  "license": "cc",
+  "devDependencies": {
+    "@flydotio/dockerfile": "^0.5.0"
+  }
 }

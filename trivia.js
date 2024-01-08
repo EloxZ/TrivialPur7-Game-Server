@@ -208,10 +208,13 @@ async function hostStartGame(data) {
                 // Start game loop by giving the first turn
                 giveTurn(0, data.gameId);
             } else {
+                console.log("Can't start game " + data.gameId);
                 rooms[data.gameId].starting = false;
-                io.sockets.in(data.gameId.toString()).emit('errorStartingGame', {message: "Error contactando Siette, prueba de nuevo en unos segundos"});
+                io.sockets.in(data.gameId.toString()).emit('errorStartingGame', {message: "Error contactando Siette."});
             }
             
+        } else {
+            io.sockets.in(data.gameId.toString()).emit('errorStartingGame', {message: "Invita al menos a un jugador para empezar."});
         }
     } catch (error) {
         console.log(error);
@@ -322,7 +325,7 @@ async function playerDisconnect() {
                     console.log("Host playing from room", key, "disconnected")
                     // If game is in lobby
                     if (value.playing == false) {
-                        console.log("[Game", gameId + "] Host left room, closing game");
+                        console.log("[Game", key + "] Host left room, closing game");
                         delete rooms[key]; 
                         io.sockets.in(key).emit('cancelSession', {message: "Se ha desconectado el host, cancelando partida..."}); // Alert users in room.
                     } else {
@@ -350,7 +353,7 @@ async function playerDisconnect() {
                 console.log("Host from room", key, "disconnected");
                 
                 if (value.playing == false) {
-                    console.log("[Game", gameId + "] Host left room, closing game");
+                    console.log("[Game", key + "] Host left room, closing game");
                     delete rooms[key]; 
                     io.sockets.in(key).emit('cancelSession', {message: "Se ha desconectado el host, cancelando partida..."}); // Alert users in room.
                 } else {
@@ -416,7 +419,7 @@ function tryLeaveRoom(data) {
         if (playerName != null) {
             Object.entries(rooms).forEach(([key, value]) => {
                 if (value.hostName == playerName) {
-                    console.log("[Game", gameId + "] Host left room, closing game");
+                    console.log("[Game", key + "] Host left room, closing game");
                     this.emit("leftRoomSuccess");
                     io.sockets.in(key).emit('cancelSession', {message: "El host ha cancelado la partida..."}); // Alert users in room.
                     const roomClone = {...rooms[key]}
@@ -657,14 +660,38 @@ async function askQuestion(playerId, gameId, color, isCheese) {
                     console.log("[Game", gameId + "] The correct answer is", rightAnswer);
                     console.log("[Game", gameId + "] The player answer is correct?", isCorrect);
                     
-                    await siette.answerQuestion(jsessionId, (playerAnswer)? playerAnswer : "", signature);
+                    for (let i=0; i<3; i++) {
+                        try {
+                            await siette.answerQuestion(jsessionId, (playerAnswer)? playerAnswer : "", signature);
+                            break;
+                        } catch (error) {
 
-                    rooms[gameId].players[playerId].tests[color].question = utils.processSingleSelectionQuestion(await siette.getNextQuestion(jsessionId, signature));
-                    rooms[gameId].players[playerId].tests[color].questionNum++;
+                        }
+                    }
 
                     io.sockets.in(gameId.toString()).emit('playerAnsweredQuestion', {color: color, playerId: playerId, correct: isCorrect});
                     io.sockets.sockets.get(playerId).emit("questionFeedback", {feedback: questionDataClone.feedback, rightAnswerText: rightAnswer.text, isCorrect: isCorrect});
-                    
+
+                    let newQuestionData;
+
+                    for (let i=0; i<3; i++) {
+                        try {
+                            newQuestionData = await siette.getNextQuestion(jsessionId, signature);
+                            break;
+                        } catch (error) {
+
+                        }
+                    }
+
+                    if (newQuestionData) {
+                        newQuestionData = utils.processSingleSelectionQuestion(newQuestionData);
+                    } else {
+                        newQuestionData = {finished: true};
+                    }
+
+                    rooms[gameId].players[playerId].tests[color].question = newQuestionData;
+                    rooms[gameId].players[playerId].tests[color].questionNum++;
+
                     if (!isCorrect) {
                         newTurn(gameId);
                     } else {

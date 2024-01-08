@@ -1,24 +1,24 @@
 const soapRequest = require('easy-soap-request');
 const xml2js = require('xml2js');
 const parser = xml2js.Parser();
-//const fs = require('fs');
+const fs = require('fs');
 const crypto = require('crypto');
 const https = require('https');
 //const { urlencoded } = require('express');
 
 // Services request data
-const sietteServicesUrl = "https://siette.test.iaia.lcc.uma.es/siette/services/External";
+const sietteServicesUrl = "https://www.siette.org/siette/services/External";
 const sietteExpiredSessionHeader = {
     'Content-Type': 'text/xml;charset=UTF-8',
-    SOAPAction: 'https://siette.test.iaia.lcc.uma.es/siette/services/External?method=hasExpiredSIETTESession',
+    SOAPAction: 'https://www.siette.org/siette/services/External?method=hasExpiredSIETTESession',
 };
 const sietteBeginTestSessionHeader = {
     'Content-Type': 'text/xml;charset=UTF-8',
-    SOAPAction: 'https://siette.test.iaia.lcc.uma.es/siette/services/External?method=beginTestSession',
+    SOAPAction: 'https://www.siette.org/siette/services/External?method=beginTestSession',
 };
 const sietteExpiredSessionBody = (token) => 
 `
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="https://siette.test.iaia.lcc.uma.es/siette/services/External">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="https://www.siette.org/siette/services/External">
     <soapenv:Body>
         <web:hasExpiredSIETTESession>
             <web:credentialIdentifier>${token}</web:credentialIdentifier>
@@ -28,7 +28,7 @@ const sietteExpiredSessionBody = (token) =>
 `;
 const sietteBeginTestSessionBody = (idTest, isColaborative, hostAddress, userName, systemId, signature) => 
 `
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="https://siette.test.iaia.lcc.uma.es/siette/services/External">
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="https://www.siette.org/siette/services/External">
     <soapenv:Body>
         <web:beginTestSession>
             <web:idTest>${idTest}</web:idTest>
@@ -104,8 +104,7 @@ async function beginTestSession(idTest, isColaborative, hostAddress, userName, s
 }
 
 async function createTestSession(idTest, userName) {
-    //const privateKey = fs.readFileSync('security/priv.pem');
-    const privateKey = process.env.SIETTE_KEY;
+    const privateKey = fs.readFileSync('./security/priv.pem');
     const signer = crypto.createSign('RSA-SHA1');
     const toSign = userName + "trivial";
     signer.update(toSign);
@@ -202,8 +201,8 @@ function answerQuestion(jsessionId, idAnswer, signature) {
             path: path,
             method: 'GET',
             headers: {
-            'Cookie': 'siette.user=' + signature,
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36'
+                'Cookie': 'siette.user=' + signature,
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.93 Safari/537.36'
             }
         };
         
